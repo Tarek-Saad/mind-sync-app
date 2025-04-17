@@ -364,7 +364,7 @@ export default function AdminDashboard() {
                 <div className="grid gap-2">
                   <h3 className="text-lg font-medium">System Maintenance</h3>
                   <p className="text-sm text-muted-foreground">
-                    Perform system maintenance tasks such as backups, updates, and optimizations.
+                    Perform system maintenance tasks such as backupss, updates, and optimizations.
                   </p>
                   <Button variant="outline" className="w-fit mt-2">
                     <Settings className="h-4 w-4 mr-2" />
