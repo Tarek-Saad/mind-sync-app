@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -10,14 +10,28 @@ import { Plus, X } from "lucide-react"
 import { Project } from "@/components/portfolio-selector"
 import { useToast } from "@/components/ui/use-toast"
 
+// Updating the ProjectForm props to handle editing
 interface ProjectFormProps {
   selectedPortfolio: string;
   projects: Project[];
   onProjectAdded: (project: Project) => void;
+  onProjectUpdated?: (project: Project) => void;
+  projectToEdit?: Project | null;
+  isEditMode?: boolean;
+  trigger?: React.ReactNode;
 }
 
-export function ProjectForm({ selectedPortfolio, projects, onProjectAdded }: ProjectFormProps) {
+export function ProjectForm({ 
+  selectedPortfolio, 
+  projects, 
+  onProjectAdded, 
+  onProjectUpdated,
+  projectToEdit = null,
+  isEditMode = false,
+  trigger
+}: ProjectFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [open, setOpen] = useState(false)
   const [newProject, setNewProject] = useState<Partial<Project>>({
     title: "",
     description: "",
@@ -32,6 +46,34 @@ export function ProjectForm({ selectedPortfolio, projects, onProjectAdded }: Pro
     date: new Date().toISOString().split('T')[0],
     views: 0
   })
+  
+  // Update form when projectToEdit changes
+  useEffect(() => {
+    if (projectToEdit && open) {
+      setNewProject({
+        ...projectToEdit,
+        // Ensure date is in the correct format
+        date: projectToEdit.date || new Date().toISOString().split('T')[0]
+      });
+    } else if (!open && !isEditMode) {
+      // Reset form when dialog closes (but not in edit mode)
+      setNewProject({
+        title: "",
+        description: "",
+        imgPath: "/Assets/Projects/default.png",
+        imagePaths: [],
+        ghLink: "",
+        demoLink: "",
+        skills: [],
+        technologies: [],
+        tools: [],
+        keyFeatures: [],
+        date: new Date().toISOString().split('T')[0],
+        views: 0
+      });
+    }
+  }, [projectToEdit, open, isEditMode]);
+
   const { toast } = useToast()
   
   // State for array input fields
@@ -106,7 +148,8 @@ export function ProjectForm({ selectedPortfolio, projects, onProjectAdded }: Pro
     });
   }
 
-  const handleAddProject = async (e: React.FormEvent, closeDialog: () => void) => {
+  // Update the handleAddProject function to handle both adding and updating
+  const handleSubmitProject = async (e: React.FormEvent, closeDialog: () => void) => {
     e.preventDefault();
     setIsSubmitting(true);
     
@@ -122,6 +165,11 @@ export function ProjectForm({ selectedPortfolio, projects, onProjectAdded }: Pro
           id: "graphics", 
           name: "Graphic Design Portfolio", 
           dbUri: "mongodb+srv://Tarek:SAad1976t@cluster0.cqa4kwi.mongodb.net/portofolio-graphic-design?retryWrites=true&w=majority&appName=Cluster0" 
+        },
+        { 
+          id: "video", 
+          name: "Video Editing Portfolio", 
+          dbUri: "mongodb+srv://Tarek:SAad1976t@cluster0.cqa4kwi.mongodb.net/portofolio-video-editing?retryWrites=true&w=majority&appName=Cluster0" 
         },
         { id: "professional", name: "Professional Portfolio", dbUri: "mongodb+srv://Tarek:SAad1976t@cluster0.cqa4kwi.mongodb.net/" },
         { id: "creative", name: "Creative Portfolio", dbUri: "" },
@@ -140,28 +188,50 @@ export function ProjectForm({ selectedPortfolio, projects, onProjectAdded }: Pro
         return;
       }
       
-      // Generate a new ID (highest ID + 1)
-      const newId = projects.length > 0 
-        ? Math.max(...projects.map(p => p.id)) + 1 
-        : 1;
+      let projectToSubmit: Project;
+      let response;
       
-      // Create the complete project object
-      const projectToAdd: Project = {
-        ...newProject as any,
-        id: newId,
-      };
-      
-      // Submit to API
-      const response = await fetch('/api/projects/add', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          project: projectToAdd,
-          dbUri 
-        }),
-      });
+      if (isEditMode && projectToEdit) {
+        // Update existing project
+        projectToSubmit = {
+          ...projectToEdit,
+          ...newProject as any
+        };
+        
+        response = await fetch('/api/projects/update', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            project: projectToSubmit,
+            dbUri 
+          }),
+        });
+      } else {
+        // Generate a new ID for new project
+        const newId = projects.length > 0 
+          ? Math.max(...projects.map(p => p.id)) + 1 
+          : 1;
+        
+        // Create the complete project object
+        projectToSubmit = {
+          ...newProject as any,
+          id: newId,
+        };
+        
+        // Submit to API
+        response = await fetch('/api/projects/add', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            project: projectToSubmit,
+            dbUri 
+          }),
+        });
+      }
       
       if (!response.ok) {
         throw new Error(`Error: ${response.status}`);
@@ -169,39 +239,46 @@ export function ProjectForm({ selectedPortfolio, projects, onProjectAdded }: Pro
       
       const result = await response.json();
       
-      // Call the callback to update parent state
-      onProjectAdded(result.project);
+      // Call the appropriate callback
+      if (isEditMode && onProjectUpdated) {
+        onProjectUpdated(result.project);
+      } else {
+        onProjectAdded(result.project);
+      }
       
-      // Reset form
-      setNewProject({
-        title: "",
-        description: "",
-        imgPath: "/Assets/Projects/default.png",
-        imagePaths: [],
-        ghLink: "",
-        demoLink: "",
-        skills: [],
-        technologies: [],
-        tools: [],
-        keyFeatures: [],
-        date: new Date().toISOString().split('T')[0],
-        views: 0
-      });
+      // Reset form if not in edit mode
+      if (!isEditMode) {
+        setNewProject({
+          title: "",
+          description: "",
+          imgPath: "/Assets/Projects/default.png",
+          imagePaths: [],
+          ghLink: "",
+          demoLink: "",
+          skills: [],
+          technologies: [],
+          tools: [],
+          keyFeatures: [],
+          date: new Date().toISOString().split('T')[0],
+          views: 0
+        });
+      }
       
       // Show success message
       toast({
         title: "Success",
-        description: "Project added successfully",
+        description: isEditMode ? "Project updated successfully" : "Project added successfully",
       });
       
       // Close the dialog
       closeDialog();
+      setOpen(false);
       
     } catch (error: any) {
-      console.error("Error adding project:", error);
+      console.error(isEditMode ? "Error updating project:" : "Error adding project:", error);
       toast({
         title: "Error",
-        description: `Failed to add project: ${error.message}`,
+        description: `Failed to ${isEditMode ? 'update' : 'add'} project: ${error.message}`,
         variant: "destructive"
       });
     } finally {
@@ -210,23 +287,28 @@ export function ProjectForm({ selectedPortfolio, projects, onProjectAdded }: Pro
   };
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Project
-        </Button>
+        {trigger || (
+          <Button>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Project
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[725px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add New Project</DialogTitle>
+          <DialogTitle>{isEditMode ? "Edit Project" : "Add New Project"}</DialogTitle>
           <DialogDescription>
-            Fill in the details for your new project. Click save when you're done.
+            {isEditMode 
+              ? "Update the details for this project. Click save when you're done."
+              : "Fill in the details for your new project. Click save when you're done."
+            }
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={(e) => {
           e.preventDefault();
-          handleAddProject(e, () => {
+          handleSubmitProject(e, () => {
             const closeButton = document.querySelector('[data-dialog-close]');
             if (closeButton instanceof HTMLElement) {
               closeButton.click();
