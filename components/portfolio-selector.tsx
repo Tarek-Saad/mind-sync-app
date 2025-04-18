@@ -49,22 +49,38 @@ export interface Experience {
   updatedAt?: string;
 }
 
+// Define Certificate interface
+export interface Certificate {
+  _id: string;
+  title: string;
+  description: string;
+  imgPath: string;
+  orgLogos: string[];
+  liveLink?: string;
+  order: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export default function PortfolioSelector({ 
   onChange, 
   value,
   onProjectsLoaded,
   onSkillsLoaded,
-  onExperiencesLoaded
+  onExperiencesLoaded,
+  onCertificatesLoaded
 }: { 
   onChange: (value: string) => void;
   value: string;
   onProjectsLoaded?: (projects: Project[]) => void;
   onSkillsLoaded?: (skills: Skill[]) => void;
   onExperiencesLoaded?: (experiences: Experience[]) => void;
+  onCertificatesLoaded?: (certificates: Certificate[]) => void;
 }) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
   const [experiences, setExperiences] = useState<Experience[]>([]);
+  const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -231,6 +247,51 @@ export default function PortfolioSelector({
     }
   }
 
+  // Use an API route for certificates
+  const fetchCertificates = async (portfolioId: string) => {
+    console.log("Fetching certificates for portfolio:", portfolioId);
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const dbUri = getDbUriForPortfolio(portfolioId);
+      if (!dbUri) {
+        setError("No database URI found for the selected portfolio");
+        return [];
+      }
+      
+      // Use an API route for certificates
+      const response = await fetch('/api/certificates', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ dbUri, portfolioId }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log("Certificates loaded:", data.length);
+      setCertificates(data);
+      
+      // Pass the certificates data to the parent component
+      if (onCertificatesLoaded) {
+        onCertificatesLoaded(data);
+      }
+      
+      return data;
+    } catch (error: any) {
+      setError(`Error fetching certificates: ${error.message}`);
+      console.error("Error fetching certificates:", error);
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  }
+
   // Fetch data when the selected portfolio changes
   useEffect(() => {
     let isMounted = true;
@@ -254,6 +315,13 @@ export default function PortfolioSelector({
       fetchExperiences(value).then(data => {
         if (isMounted && onExperiencesLoaded) {
           onExperiencesLoaded(data);
+        }
+      });
+      
+      // Fetch certificates
+      fetchCertificates(value).then(data => {
+        if (isMounted && onCertificatesLoaded) {
+          onCertificatesLoaded(data);
         }
       });
     }

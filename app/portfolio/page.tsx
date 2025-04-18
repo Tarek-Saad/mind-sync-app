@@ -5,19 +5,22 @@ import { ArrowLeft, Plus } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import PortfolioSelector, { Project, Skill, Portfolio, Experience } from "@/components/portfolio-selector"
+import PortfolioSelector, { Project, Skill, Portfolio, Experience, Certificate } from "@/components/portfolio-selector"
 import { ProjectsList } from "@/components/projects/projects-list"
 import { SkillsList } from "@/components/skills/skills-list"
 import { ExperiencesList } from "@/components/experiences/experiences-list"
+import { CertificatesList } from "@/components/certificates/certificates-list"
 
 export default function PortfolioCluster() {
   const [selectedPortfolio, setSelectedPortfolio] = useState("")
   const [projects, setProjects] = useState<Project[]>([])
   const [skills, setSkills] = useState<Skill[]>([])
   const [experiences, setExperiences] = useState<Experience[]>([])
+  const [certificates, setCertificates] = useState<Certificate[]>([])
   const [isLoadingProjects, setIsLoadingProjects] = useState(false)
   const [isLoadingSkills, setIsLoadingSkills] = useState(false)
   const [isLoadingExperiences, setIsLoadingExperiences] = useState(false)
+  const [isLoadingCertificates, setIsLoadingCertificates] = useState(false)
   const [currentTab, setCurrentTab] = useState("projects")
 
   const handlePortfolioChange = ({value}:{value:string}) => {
@@ -26,9 +29,11 @@ export default function PortfolioCluster() {
     setProjects([])
     setSkills([])
     setExperiences([])
+    setCertificates([])
     setIsLoadingProjects(true)
     setIsLoadingSkills(true)
     setIsLoadingExperiences(true)
+    setIsLoadingCertificates(true)
   }
 
   const handleProjectsLoaded = (loadedProjects: Project[]) => {
@@ -73,6 +78,26 @@ export default function PortfolioCluster() {
 
   const handleExperienceDeleted = (experienceId: string) => {
     setExperiences(prev => prev.filter(experience => experience._id !== experienceId))
+  }
+
+  const handleCertificatesLoaded = (loadedCertificates: Certificate[]) => {
+    console.log("Certificates loaded in page component:", loadedCertificates.length)
+    setCertificates(loadedCertificates)
+    setIsLoadingCertificates(false)
+  }
+
+  const handleCertificateAdded = (newCertificate: Certificate) => {
+    setCertificates(prev => [...prev, newCertificate])
+  }
+
+  const handleCertificateEdited = (editedCertificate: Certificate) => {
+    setCertificates(prev => prev.map(certificate => 
+      certificate._id === editedCertificate._id ? editedCertificate : certificate
+    ))
+  }
+
+  const handleCertificateDeleted = (certificateId: string) => {
+    setCertificates(prev => prev.filter(certificate => certificate._id !== certificateId))
   }
 
   // Handle tab change
@@ -130,6 +155,7 @@ export default function PortfolioCluster() {
           onProjectsLoaded={handleProjectsLoaded}
           onSkillsLoaded={handleSkillsLoaded}
           onExperiencesLoaded={handleExperiencesLoaded}
+          onCertificatesLoaded={handleCertificatesLoaded}
         />
       </div>
 
@@ -190,13 +216,15 @@ export default function PortfolioCluster() {
 
           {/* Content for the "Certifications" tab */}
           <TabsContent value="certifications">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-semibold">Certifications</h2>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Certification
-              </Button>
-            </div>
+            <CertificatesList
+              certificates={certificates}
+              isLoading={isLoadingCertificates}
+              selectedPortfolio={selectedPortfolio}
+              getDbUriForPortfolio={getDbUriForPortfolio}
+              onCertificateAdded={handleCertificateAdded}
+              onCertificateEdited={handleCertificateEdited}
+              onCertificateDeleted={handleCertificateDeleted}
+            />
           </TabsContent>
         </Tabs>
       )}
