@@ -27,16 +27,28 @@ export interface Project {
   views?: number;
 }
 
+// Define Skill interface
+export interface Skill {
+  _id: string;
+  name: string;
+  category: string;
+  iconType: string;
+  iconName: string;
+}
+
 export default function PortfolioSelector({ 
   onChange, 
   value,
-  onProjectsLoaded
+  onProjectsLoaded,
+  onSkillsLoaded
 }: { 
   onChange: (value: string) => void;
   value: string;
   onProjectsLoaded?: (projects: Project[]) => void;
+  onSkillsLoaded?: (skills: Skill[]) => void;
 }) {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [skills, setSkills] = useState<Skill[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -64,19 +76,18 @@ export default function PortfolioSelector({
   // Function to get the database URI for the selected portfolio
   const getDbUriForPortfolio = (portfolioId: string): string => {
     const portfolio = portfolios.find(p => p.id === portfolioId);
-    console.log(portfolio?.dbUri)
+    console.log("Selected portfolio URI:", portfolio?.dbUri);
     return portfolio?.dbUri || "";
   }
 
-  // Use an API route instead of direct Mongoose connection
+  // Use an API route instead of direct Mongoose connection for projects
   const fetchProjects = async (portfolioId: string) => {
-    console.log(portfolioId)
+    console.log("Fetching projects for portfolio:", portfolioId);
     try {
       setLoading(true);
       setError(null);
       
       const dbUri = getDbUriForPortfolio(portfolioId);
-      console.log(dbUri)
       if (!dbUri) {
         setError("No database URI found for the selected portfolio");
         return [];
@@ -88,7 +99,7 @@ export default function PortfolioSelector({
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ dbUri }),
+        body: JSON.stringify({ dbUri, portfolioId }),
       });
       
       if (!response.ok) {
@@ -96,7 +107,7 @@ export default function PortfolioSelector({
       }
       
       const data = await response.json();
-      console.log(data)
+      console.log("Projects loaded:", data.length);
       setProjects(data);
       
       // Pass the projects data to the parent component
@@ -114,15 +125,67 @@ export default function PortfolioSelector({
     }
   }
 
-  // Fetch projects when the selected portfolio changes
+  // Use an API route for skills
+  const fetchSkills = async (portfolioId: string) => {
+    console.log("Fetching skills for portfolio:", portfolioId);
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const dbUri = getDbUriForPortfolio(portfolioId);
+      if (!dbUri) {
+        setError("No database URI found for the selected portfolio");
+        return [];
+      }
+      
+      // Use an API route for skills
+      const response = await fetch('/api/skills', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ dbUri, portfolioId }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log("Skills loaded:", data.length);
+      setSkills(data);
+      
+      // Pass the skills data to the parent component
+      if (onSkillsLoaded) {
+        onSkillsLoaded(data);
+      }
+      
+      return data;
+    } catch (error: any) {
+      setError(`Error fetching skills: ${error.message}`);
+      console.error("Error fetching skills:", error);
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Fetch data when the selected portfolio changes
   useEffect(() => {
     let isMounted = true;
     
     if (value) {
+      // Fetch projects
       fetchProjects(value).then(data => {
         if (isMounted && onProjectsLoaded) {
-          // Only call onProjectsLoaded once with the fetched data
           onProjectsLoaded(data);
+        }
+      });
+      
+      // Fetch skills
+      fetchSkills(value).then(data => {
+        if (isMounted && onSkillsLoaded) {
+          onSkillsLoaded(data);
         }
       });
     }
@@ -131,7 +194,7 @@ export default function PortfolioSelector({
     return () => {
       isMounted = false;
     };
-  }, [value]); // Remove onProjectsLoaded from dependency array
+  }, [value]); // Only depend on value
 
   return (
     <div className="flex flex-col space-y-2">
@@ -155,7 +218,7 @@ export default function PortfolioSelector({
         </SelectContent>
       </Select>
       
-      {loading && <p className="text-sm text-gray-500">Loading projects...</p>}
+      {loading && <p className="text-sm text-gray-500">Loading data...</p>}
       {error && <p className="text-sm text-red-500">{error}</p>}
     </div>
   )

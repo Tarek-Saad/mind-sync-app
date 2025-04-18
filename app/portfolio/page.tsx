@@ -1,12 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { ArrowLeft, Plus } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import PortfolioSelector, { Project, Skill } from "@/components/portfolio-selector"
+import PortfolioSelector, { Project, Skill, Portfolio } from "@/components/portfolio-selector"
 import { ProjectsList } from "@/components/projects/projects-list"
+import { SkillsList } from "@/components/skills/skills-list"
 
 export default function PortfolioCluster() {
   const [selectedPortfolio, setSelectedPortfolio] = useState("")
@@ -41,9 +42,43 @@ export default function PortfolioCluster() {
     setProjects(prev => [...prev, newProject])
   }
 
+  const handleSkillAdded = (newSkill: Skill) => {
+    setSkills(prev => [...prev, newSkill])
+  }
+
+  const handleSkillDeleted = (skillId: string) => {
+    setSkills(prev => prev.filter(skill => skill._id !== skillId))
+  }
+
   // Handle tab change
   const handleTabChange = (value: string) => {
     setCurrentTab(value)
+  }
+
+  // Function to get the database URI for the selected portfolio
+  const getDbUriForPortfolio = (portfolioId: string): string => {
+    const portfolios: Portfolio[] = [  
+      { 
+        id: "fullstack", 
+        name: "Full Stack Portfolio", 
+        dbUri: "mongodb+srv://Tarek:SAad1976t@cluster0.cqa4kwi.mongodb.net/portofolio?retryWrites=true&w=majority&appName=Cluster0" 
+      },
+      { 
+        id: "graphics", 
+        name: "Graphic Design Portfolio", 
+        dbUri: "mongodb+srv://Tarek:SAad1976t@cluster0.cqa4kwi.mongodb.net/portofolio-graphic-design?retryWrites=true&w=majority&appName=Cluster0" 
+      },
+      { 
+        id: "video", 
+        name: "Video Editing Portfolio", 
+        dbUri: "mongodb+srv://Tarek:SAad1976t@cluster0.cqa4kwi.mongodb.net/portofolio-video-editing?retryWrites=true&w=majority&appName=Cluster0" 
+      },
+      { id: "creative", name: "Creative Portfolio", dbUri: "" },
+      { id: "technical", name: "Technical Portfolio", dbUri: "" },
+    ];
+    
+    const portfolio = portfolios.find(p => p.id === portfolioId);
+    return portfolio?.dbUri || "";
   }
 
   return (
@@ -99,43 +134,19 @@ export default function PortfolioCluster() {
 
           {/* Content for the "Skills" tab */}
           <TabsContent value="skills">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-semibold">Skills</h2>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Skill
-              </Button>
-            </div>
-            
-            {isLoadingSkills ? (
-              <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-              </div>
-            ) : skills.length > 0 ? (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {skills.map((skill) => (
-                  <div key={skill._id} className="border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-medium">{skill.name}</h3>
-                        <p className="text-sm text-muted-foreground capitalize">{skill.category}</p>
-                      </div>
-                      {skill.iconType !== 'none' && (
-                        <div className="h-8 w-8 flex items-center justify-center">
-                          <div className="bg-gray-200 h-full w-full rounded-full flex items-center justify-center">
-                            {skill.iconName ? skill.iconName.substring(0, 1) : ''}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                No skills found. Add your first skill to get started.
-              </div>
-            )}
+            <SkillsList
+              onSkillEdited={(editedSkill) => {
+                setSkills(prev => prev.map(skill => 
+                  skill._id === editedSkill._id ? editedSkill : skill
+                ))
+              }}
+              skills={skills}
+              isLoading={isLoadingSkills}
+              selectedPortfolio={selectedPortfolio}
+              getDbUriForPortfolio={getDbUriForPortfolio}
+              onSkillAdded={handleSkillAdded}
+              onSkillDeleted={handleSkillDeleted}
+            />
           </TabsContent>
 
           {/* Content for the "Experience" tab */}
