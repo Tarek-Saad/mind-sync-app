@@ -36,19 +36,35 @@ export interface Skill {
   iconName: string;
 }
 
+// Define Experience interface
+export interface Experience {
+  _id: string;
+  title: string;
+  company: string;
+  duration: string;
+  type: string;
+  role: string[];
+  order: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export default function PortfolioSelector({ 
   onChange, 
   value,
   onProjectsLoaded,
-  onSkillsLoaded
+  onSkillsLoaded,
+  onExperiencesLoaded
 }: { 
   onChange: (value: string) => void;
   value: string;
   onProjectsLoaded?: (projects: Project[]) => void;
   onSkillsLoaded?: (skills: Skill[]) => void;
+  onExperiencesLoaded?: (experiences: Experience[]) => void;
 }) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
+  const [experiences, setExperiences] = useState<Experience[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -170,6 +186,51 @@ export default function PortfolioSelector({
     }
   }
 
+  // Use an API route for experiences
+  const fetchExperiences = async (portfolioId: string) => {
+    console.log("Fetching experiences for portfolio:", portfolioId);
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const dbUri = getDbUriForPortfolio(portfolioId);
+      if (!dbUri) {
+        setError("No database URI found for the selected portfolio");
+        return [];
+      }
+      
+      // Use an API route for experiences
+      const response = await fetch('/api/experiences', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ dbUri, portfolioId }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log("Experiences loaded:", data.length);
+      setExperiences(data);
+      
+      // Pass the experiences data to the parent component
+      if (onExperiencesLoaded) {
+        onExperiencesLoaded(data);
+      }
+      
+      return data;
+    } catch (error: any) {
+      setError(`Error fetching experiences: ${error.message}`);
+      console.error("Error fetching experiences:", error);
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  }
+
   // Fetch data when the selected portfolio changes
   useEffect(() => {
     let isMounted = true;
@@ -186,6 +247,13 @@ export default function PortfolioSelector({
       fetchSkills(value).then(data => {
         if (isMounted && onSkillsLoaded) {
           onSkillsLoaded(data);
+        }
+      });
+      
+      // Fetch experiences
+      fetchExperiences(value).then(data => {
+        if (isMounted && onExperiencesLoaded) {
+          onExperiencesLoaded(data);
         }
       });
     }

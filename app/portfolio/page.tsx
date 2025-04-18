@@ -5,16 +5,19 @@ import { ArrowLeft, Plus } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import PortfolioSelector, { Project, Skill, Portfolio } from "@/components/portfolio-selector"
+import PortfolioSelector, { Project, Skill, Portfolio, Experience } from "@/components/portfolio-selector"
 import { ProjectsList } from "@/components/projects/projects-list"
 import { SkillsList } from "@/components/skills/skills-list"
+import { ExperiencesList } from "@/components/experiences/experiences-list"
 
 export default function PortfolioCluster() {
   const [selectedPortfolio, setSelectedPortfolio] = useState("")
   const [projects, setProjects] = useState<Project[]>([])
   const [skills, setSkills] = useState<Skill[]>([])
+  const [experiences, setExperiences] = useState<Experience[]>([])
   const [isLoadingProjects, setIsLoadingProjects] = useState(false)
   const [isLoadingSkills, setIsLoadingSkills] = useState(false)
+  const [isLoadingExperiences, setIsLoadingExperiences] = useState(false)
   const [currentTab, setCurrentTab] = useState("projects")
 
   const handlePortfolioChange = ({value}:{value:string}) => {
@@ -22,8 +25,10 @@ export default function PortfolioCluster() {
     setSelectedPortfolio(value)
     setProjects([])
     setSkills([])
+    setExperiences([])
     setIsLoadingProjects(true)
     setIsLoadingSkills(true)
+    setIsLoadingExperiences(true)
   }
 
   const handleProjectsLoaded = (loadedProjects: Project[]) => {
@@ -48,6 +53,26 @@ export default function PortfolioCluster() {
 
   const handleSkillDeleted = (skillId: string) => {
     setSkills(prev => prev.filter(skill => skill._id !== skillId))
+  }
+
+  const handleExperiencesLoaded = (loadedExperiences: Experience[]) => {
+    console.log("Experiences loaded in page component:", loadedExperiences.length)
+    setExperiences(loadedExperiences)
+    setIsLoadingExperiences(false)
+  }
+
+  const handleExperienceAdded = (newExperience: Experience) => {
+    setExperiences(prev => [...prev, newExperience])
+  }
+
+  const handleExperienceEdited = (editedExperience: Experience) => {
+    setExperiences(prev => prev.map(experience => 
+      experience._id === editedExperience._id ? editedExperience : experience
+    ))
+  }
+
+  const handleExperienceDeleted = (experienceId: string) => {
+    setExperiences(prev => prev.filter(experience => experience._id !== experienceId))
   }
 
   // Handle tab change
@@ -104,6 +129,7 @@ export default function PortfolioCluster() {
           value={selectedPortfolio} 
           onProjectsLoaded={handleProjectsLoaded}
           onSkillsLoaded={handleSkillsLoaded}
+          onExperiencesLoaded={handleExperiencesLoaded}
         />
       </div>
 
@@ -151,13 +177,15 @@ export default function PortfolioCluster() {
 
           {/* Content for the "Experience" tab */}
           <TabsContent value="experience">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-semibold">Experience</h2>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Experience
-              </Button>
-            </div>
+            <ExperiencesList
+              experiences={experiences}
+              isLoading={isLoadingExperiences}
+              selectedPortfolio={selectedPortfolio}
+              getDbUriForPortfolio={getDbUriForPortfolio}
+              onExperienceAdded={handleExperienceAdded}
+              onExperienceEdited={handleExperienceEdited}
+              onExperienceDeleted={handleExperienceDeleted}
+            />
           </TabsContent>
 
           {/* Content for the "Certifications" tab */}
